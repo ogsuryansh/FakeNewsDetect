@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Search, Brain, ShieldCheck, AlertCircle, ExternalLink, Loader2, Info, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Search, Brain, ShieldCheck, AlertCircle, ExternalLink, Loader2, Info, CheckCircle2, Globe, FileText } from "lucide-react";
 
 function Detect() {
-  const [mode, setMode] = useState("article");
+  const [mode, setMode] = useState("url");
   const [input, setInput] = useState("");
   const [textBody, setTextBody] = useState("");
   const [loading, setLoading] = useState(false);
@@ -12,10 +12,10 @@ function Detect() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
   const stages = [
-    { text: "Scanning global indices...", icon: <Search className="w-5 h-5 text-indigo-600" /> },
-    { text: "GPT-4o Cross-Verification...", icon: <Brain className="w-5 h-5 text-purple-600" /> },
-    { text: "Validating citations...", icon: <ShieldCheck className="w-5 h-5 text-emerald-600" /> },
-    { text: "Generating audit report...", icon: <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" /> }
+    "Searching databases...",
+    "Analyzing content...",
+    "Verifying sources...",
+    "Finalizing report..."
   ];
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function Detect() {
     if (loading) {
       interval = setInterval(() => {
         setLoadingStage((prev) => (prev < 3 ? prev + 1 : prev));
-      }, 1200);
+      }, 1000);
     } else {
       setLoadingStage(0);
       clearInterval(interval);
@@ -44,70 +44,63 @@ function Detect() {
       const data = await response.json();
       setResult(data);
     } catch (error) {
-      setResult({ error: "Intelligence node timeout. Please try again." });
+      setResult({ error: "Connection error. Please verify the backend service is running." });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex flex-col items-center py-20 px-6 relative overflow-hidden font-jakarta">
-      <div className="absolute top-[-10%] left-[-5%] w-[45rem] h-[45rem] bg-indigo-100/40 rounded-full blur-[120px] pointer-events-none animate-pulse" />
-      <div className="absolute bottom-[0%] right-[-5%] w-[40rem] h-[40rem] bg-rose-100/40 rounded-full blur-[120px] pointer-events-none animate-pulse" />
-
-      <div className="w-full max-w-6xl z-10">
-        <header className="text-center mb-16 px-4">
-          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white border-2 border-indigo-100 text-indigo-700 mb-8 font-black shadow-xl hover:scale-105 transition-transform cursor-default">
-            <ShieldCheck className="w-5 h-5" />
-            <span className="text-[0.8rem] uppercase tracking-widest leading-none">Security Protocol Active</span>
-          </div>
-          <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-8">
-            News <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-900">Auditor.</span>
-          </h1>
-          <p className="text-slate-600 text-xl md:text-2xl font-bold max-w-3xl mx-auto leading-relaxed opacity-90">
-            Automated Fact-Checking powered by <span className="text-indigo-600">GPT-4o</span> and Global Search.
-          </p>
+    <div className="min-h-screen bg-white font-sans text-slate-900 border-t-4 border-indigo-600">
+      <div className="max-w-6xl mx-auto px-6 py-12 md:py-20">
+        <header className="mb-12 border-b border-slate-100 pb-8">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Information Verification</h1>
+          <p className="text-slate-500 text-lg">AI-powered fact check and source analysis.</p>
         </header>
 
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          <section className="lg:col-span-5 bg-white rounded-[3rem] p-10 shadow-2xl border-4 border-white h-fit backdrop-blur-sm sticky top-10">
-            <div className="flex p-2 bg-slate-100 rounded-3xl mb-10 border-2 border-slate-200/50">
-              {["article", "url"].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`flex-1 py-4 text-sm font-black rounded-2xl transition-all duration-300 ${mode === m ? "bg-white text-indigo-600 shadow-xl scale-[1.03]" : "text-slate-400 hover:text-slate-700"
-                    }`}
-                >
-                  {m.toUpperCase()}
-                </button>
-              ))}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Input Section */}
+          <div className="lg:col-span-12 xl:col-span-5 bg-slate-50 border border-slate-200 rounded-lg p-8 shadow-sm h-fit">
+            <div className="flex gap-4 mb-8">
+              <button
+                onClick={() => setMode("url")}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${mode === "url" ? "bg-indigo-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+              >
+                <Globe className="w-4 h-4" /> URL Link
+              </button>
+              <button
+                onClick={() => setMode("article")}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${mode === "article" ? "bg-indigo-600 text-white shadow-sm" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+              >
+                <FileText className="w-4 h-4" /> Full Text
+              </button>
             </div>
 
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <div className="flex justify-between px-1">
-                  <label className="text-[0.75rem] font-black uppercase text-slate-900 tracking-widest">Inquiry Source</label>
-                  <span className="text-[0.7rem] text-indigo-400 font-bold uppercase tracking-widest">{mode} mode</span>
-                </div>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  {mode === "url" ? "Source URL" : "Headline"}
+                </label>
                 <input
                   type="text"
-                  placeholder={mode === "url" ? "Enter URL here..." : "Enter headline..."}
+                  placeholder={mode === "url" ? "Paste news link here..." : "Enter the headline to check..."}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.8rem] focus:bg-white focus:border-indigo-500 focus:shadow-2xl outline-none transition-all text-slate-900 placeholder:text-slate-400 font-bold text-lg"
+                  className="w-full px-4 py-3 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all"
                 />
               </div>
 
               {mode === "article" && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <label className="text-[0.75rem] font-black uppercase text-slate-900 tracking-widest px-1">Detailed Content</label>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Article Content</label>
                   <textarea
-                    placeholder="Paste context for semantic analysis..."
+                    placeholder="Paste the full content here for analysis..."
                     value={textBody}
                     onChange={(e) => setTextBody(e.target.value)}
-                    rows="6"
-                    className="w-full px-8 py-5 bg-slate-50 border-2 border-slate-100 rounded-[1.8rem] focus:bg-white focus:border-indigo-500 focus:shadow-2xl outline-none transition-all text-slate-900 placeholder:text-slate-400 font-bold text-lg resize-none shadow-inner"
+                    rows="8"
+                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 outline-none transition-all resize-none font-sans"
                   />
                 </div>
               )}
@@ -115,44 +108,34 @@ function Detect() {
               <button
                 onClick={handlePredict}
                 disabled={loading}
-                className={`w-full py-6 rounded-[2rem] font-black text-white text-xl tracking-wider shadow-2xl transition-all active:scale-[0.97] flex items-center justify-center gap-4 group ${loading ? "bg-slate-300 shadow-none cursor-not-allowed" : "bg-indigo-600 hover:bg-slate-900 hover:shadow-indigo-300"
+                className={`w-full py-3 rounded-md font-bold text-sm tracking-wide transition-all shadow-sm flex items-center justify-center gap-2 ${loading ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-black active:scale-[0.99]"
                   }`}
               >
-                {loading ? (
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                ) : (
-                  <>
-                    <span>INVOKE AUDIT</span>
-                    <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
-                  </>
-                )}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Verify Information"}
               </button>
             </div>
-          </section>
+          </div>
 
-          <section className="lg:col-span-12 xl:col-span-7 min-h-[600px] flex flex-col">
+          {/* Results Section */}
+          <div className="lg:col-span-12 xl:col-span-7">
             {!result && !loading && (
-              <div className="flex-1 flex flex-col items-center justify-center bg-white/60 rounded-[3.5rem] border-4 border-dashed border-slate-200 p-16 text-center shadow-inner backdrop-blur-md">
-                <div className="w-24 h-24 bg-indigo-100 rounded-[2.5rem] flex items-center justify-center mb-10 shadow-lg border-2 border-white">
-                  <Info className="w-12 h-12 text-indigo-600" />
-                </div>
-                <h3 className="text-4xl font-black text-slate-900 mb-6 tracking-tight">System Idle</h3>
-                <p className="text-slate-500 text-xl font-bold max-w-sm mx-auto leading-relaxed">Submit an inquiry to initiate the cryptographic verification protocol.</p>
+              <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50 p-12 text-center">
+                <Search className="w-12 h-12 text-slate-300 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900 mb-1">Awaiting Data</h3>
+                <p className="text-slate-500 text-sm">Submit a URL or text to begin analysis.</p>
               </div>
             )}
 
             {loading && (
-              <div className="flex-1 bg-white rounded-[3.5rem] p-16 flex flex-col items-center justify-center gap-12 shadow-2xl animate-in zoom-in-95 duration-500 border-4 border-white">
-                <div className="text-center space-y-4">
-                  <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    {stages[loadingStage].icon}
-                  </div>
-                  <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{stages[loadingStage].text}</h4>
-                  <p className="text-slate-400 font-bold uppercase text-xs tracking-[0.3em]">Processing Logic Layers</p>
+              <div className="h-full bg-white border border-slate-200 rounded-lg p-16 flex flex-col items-center justify-center gap-8 shadow-sm">
+                <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                <div className="text-center">
+                  <p className="text-lg font-bold text-slate-900 mb-2">{stages[loadingStage]}</p>
+                  <p className="text-slate-400 text-xs uppercase tracking-widest">Cross-referencing with live data</p>
                 </div>
-                <div className="w-full max-w-md h-4 bg-slate-100 rounded-full overflow-hidden shadow-inner border-2 border-white">
+                <div className="w-full max-w-sm h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 transition-all duration-700 shadow-[0_0_20px_rgba(79,70,229,0.4)]"
+                    className="h-full bg-indigo-600 transition-all duration-500"
                     style={{ width: `${(loadingStage + 1) * 25}%` }}
                   />
                 </div>
@@ -160,76 +143,78 @@ function Detect() {
             )}
 
             {result && !loading && (
-              <div className="flex-1 bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] border-4 border-white overflow-hidden animate-in slide-in-from-bottom-12 duration-1000">
+              <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden animate-in fade-in duration-500">
                 {result.error ? (
-                  <div className="p-20 text-center">
-                    <AlertCircle className="w-24 h-24 text-rose-600 mx-auto mb-10" />
-                    <p className="text-slate-900 text-3xl font-black">{result.error}</p>
-                    <button onClick={() => setResult(null)} className="mt-8 text-indigo-600 font-black uppercase tracking-widest text-sm hover:underline">Reset System</button>
+                  <div className="p-12 text-center text-rose-600 bg-rose-50/20">
+                    <AlertCircle className="w-10 h-10 mx-auto mb-4" />
+                    <p className="font-bold">{result.error}</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col h-full">
-                    <div className={`p-12 border-b-4 border-slate-50 relative ${result.prediction === "REAL" ? "bg-emerald-50/70" :
-                        result.prediction === "FAKE" ? "bg-rose-50/70" : "bg-amber-50/70"
+                  <div>
+                    {/* Verdict Header */}
+                    <div className={`px-10 py-8 border-b border-slate-100 flex items-center justify-between ${(result.verdict || result.prediction) === "REAL" ? "bg-emerald-50/20" :
+                        (result.verdict || result.prediction) === "FAKE" ? "bg-rose-50/20" : "bg-amber-50/20"
                       }`}>
-                      <div className="flex flex-col md:flex-row items-center justify-between gap-10 relative z-10">
-                        <div className="space-y-4">
-                          <span className="text-[0.8rem] font-black uppercase tracking-[0.3em] text-slate-400">Audit Conclusion</span>
-                          <div className="flex items-center gap-6">
-                            <h2 className={`text-7xl md:text-9xl font-black tracking-tighter animate-pulse ${result.prediction === "REAL" ? "text-emerald-700" :
-                                result.prediction === "FAKE" ? "text-rose-700" : "text-amber-700"
-                              }`}>{result.verdict || result.prediction}</h2>
-                            {(result.verdict === "REAL" || result.prediction === "REAL") && <CheckCircle2 className="w-16 h-16 text-emerald-600 hidden md:block" />}
-                          </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Analysis Result</span>
+                        <div className="flex items-center gap-3">
+                          <h2 className={`text-4xl font-bold tracking-tight ${(result.verdict || result.prediction) === "REAL" ? "text-emerald-700" :
+                              (result.verdict || result.prediction) === "FAKE" ? "text-rose-700" : "text-amber-700"
+                            }`}>{(result.verdict || result.prediction)}</h2>
+                          {(result.verdict === "REAL" || result.prediction === "REAL") ?
+                            <CheckCircle2 className="w-6 h-6 text-emerald-600" /> :
+                            <AlertCircle className="w-6 h-6 text-rose-600" />}
                         </div>
-                        <div className="px-12 py-8 bg-white/80 backdrop-blur-xl rounded-[2.5rem] border-4 border-white text-center shadow-2xl transform hover:scale-105 transition-transform">
-                          <span className="text-[0.85rem] font-black uppercase tracking-[0.3em] text-slate-500 block mb-2">Confidence Level</span>
-                          <span className="text-7xl font-black text-slate-900 tracking-tighter">{result.confidence}%</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Confidence</span>
+                        <div className="text-2xl font-bold text-slate-900">{result.confidence}%</div>
+                        <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-indigo-600" style={{ width: `${result.confidence}%` }}></div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-14 space-y-16">
-                      <div className="relative">
-                        <div className="flex items-center gap-4 mb-8">
-                          <div className="p-3 bg-indigo-600 rounded-2xl shadow-indigo-200 shadow-xl">
-                            <Brain className="w-6 h-6 text-white" />
-                          </div>
-                          <h4 className="text-[0.9rem] font-black uppercase tracking-[0.2em] text-slate-900">Intelligence Brief</h4>
-                        </div>
-                        <p className="text-3xl text-slate-800 font-bold leading-tight tracking-tight pl-10 border-l-[6px] border-indigo-100 py-2">
+                    {/* Detailed Analysis */}
+                    <div className="p-10">
+                      <div className="mb-10">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">
+                          <Brain className="w-4 h-4 text-indigo-600" /> Reasoning and Evidence
+                        </h4>
+                        <p className="text-slate-700 leading-relaxed text-lg border-l-2 border-slate-200 pl-6">
                           {result.explanation}
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                        <div className="p-10 rounded-[2.5rem] bg-slate-50 border-4 border-white group hover:border-indigo-200 transition-all shadow-xl">
-                          <span className="text-[0.8rem] font-black uppercase tracking-[0.2em] text-slate-400 block mb-4">ML Style Check</span>
-                          <span className={`text-2xl font-black ${result.style_analysis === "REAL" ? "text-slate-900" : "text-rose-600"}`}>
-                            {result.style_analysis === "REAL" ? "Journalistic Form" : "Clickbait Signal"}
+                      <div className="grid grid-cols-2 gap-6 mb-10">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-md">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Writing Style</span>
+                          <span className="font-bold text-slate-900">
+                            {result.style_analysis === "REAL" ? "Journalistic" : "Sensationalist"}
                           </span>
                         </div>
-                        <div className="p-10 rounded-[2.5rem] bg-slate-50 border-4 border-white shadow-xl">
-                          <span className="text-[0.8rem] font-black uppercase tracking-[0.2em] text-slate-400 block mb-4">Kernel Layer</span>
-                          <span className="text-2xl font-black text-indigo-800 italic">Advanced GPT-4o</span>
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-md">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Audit Level</span>
+                          <span className="font-bold text-indigo-700">Deep AI Verification</span>
                         </div>
                       </div>
 
                       {result.sources && result.sources.length > 0 && (
-                        <div className="pt-12 border-t-8 border-slate-50">
-                          <h4 className="text-[1rem] font-black uppercase tracking-[0.3em] text-slate-900 mb-10">Verification Origins</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            {result.sources.map((src, idx) => (
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4">Referenced Sources</h4>
+                          <div className="space-y-3">
+                            {result.sources.map((src, i) => (
                               <a
-                                key={idx}
+                                key={i}
                                 href={src}
                                 target="_blank"
-                                className="group flex items-center justify-between p-7 rounded-[1.8rem] bg-slate-900 hover:bg-indigo-600 shadow-2xl transition-all hover:-translate-y-2"
+                                rel="noreferrer"
+                                className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded hover:bg-slate-50 transition-colors"
                               >
-                                <span className="text-sm font-black text-slate-100 group-hover:text-white truncate max-w-[200px]">
+                                <span className="text-sm font-medium text-slate-700 truncate max-w-[280px]">
                                   {new URL(src).hostname}
                                 </span>
-                                <ExternalLink className="w-5 h-5 text-indigo-400 group-hover:text-white transition-all transform group-hover:rotate-12" />
+                                <ExternalLink className="w-3 h-3 text-slate-400" />
                               </a>
                             ))}
                           </div>
@@ -240,8 +225,8 @@ function Detect() {
                 )}
               </div>
             )}
-          </section>
-        </main>
+          </div>
+        </div>
       </div>
     </div>
   );
