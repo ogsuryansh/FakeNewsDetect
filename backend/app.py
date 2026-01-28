@@ -21,8 +21,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 def setup_nltk():
     download_dir = "/tmp/nltk_data"
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
+    if not os.path.exists(download_dir): os.makedirs(download_dir)
     nltk.data.path.append(download_dir)
     try:
         nltk.data.find('corpora/stopwords')
@@ -44,79 +43,62 @@ def is_url(text):
     try:
         result = urlparse(text)
         return all([result.scheme, result.netloc])
-    except:
-        return False
+    except: return False
 
 def scrape_url(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
+        response = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.text, 'html.parser')
         title = (soup.find('h1') or soup.find('title')).get_text().strip()
-        paragraphs = soup.find_all('p')
-        text = " ".join([p.get_text().strip() for p in paragraphs if len(p.get_text().strip()) > 20])
-        return title, text
-    except:
-        return None, None
+        text = " ".join([p.get_text().strip() for p in soup.find_all('p') if len(p.get_text().strip()) > 30])
+        return title[:200], text[:1000]
+    except: return None, None
 
 def google_search(query):
     if not SERPER_API_KEY: return []
     url = "https://google.serper.dev/search"
-    headers = {'X-API-KEY': SERPER_API_KEY, 'Content-Type': 'application/json'}
-    data = {"q": query, "num": 5}
-    try:
-        response = requests.post(url, headers=headers, json=data)
+    headers = {'X-API-KEY': SERPER_API_KEY}
+    try: # Limited to 3 for speed
+        response = requests.post(url, headers=headers, json={"q": query, "num": 3}, timeout=4)
         return response.json().get('organic', [])
-    except:
-        return []
+    except: return []
 
 def ai_analyze(news_title, news_text, search_results):
     if not GITHUB_TOKEN: return None
     url = "https://models.inference.ai.azure.com/chat/completions"
     
-    search_context = ""
-    for idx, res in enumerate(search_results):
-        search_context += f"\n[{idx+1}] {res.get('link')}: {res.get('snippet')}\n"
+    context = ""
+    for res in search_results:
+        context += f"- {res.get('link')}: {res.get('snippet')}\n"
 
-    prompt = f"Fact-check this: {news_title}. Content: {news_text}. External context: {search_context}. Respond ONLY with a JSON object: {{\"verdict\": \"REAL\"|\"FAKE\"|\"MISLEADING\", \"confidence\": percentage, \"explanation\": \"short explanation\", \"sources\": [links]}}"
-    
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Content-Type": "application/json"}
-    data = {
-        "messages": [
-            {"role": "system", "content": "You are a professional fact-checker. You MUST respond in valid JSON format."},
-            {"role": "user", "content": prompt}
-        ],
-        "model": "gpt-4o",
-        "temperature": 0.1
-    }
+    prompt = f"Analyze: {news_title}. Context: {context}. Respond in JSON: {{\"verdict\": \"REAL\"|\"FAKE\", \"confidence\": int, \"explanation\": \"str\", \"sources\": []}}"
     
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}, 
+                                 json={
+                                     "messages": [
+                                         {"role": "system", "content": "You are a fast JSON fact-checker."},
+                                         {"role": "user", "content": prompt}
+                                     ],
+                                     "model": "gpt-4o",
+                                     "temperature": 0.1,
+                                     "max_tokens": 150
+                                 }, timeout=6)
         content = response.json()['choices'][0]['message']['content']
         match = re.search(r'\{.*\}', content, re.DOTALL)
-        return json.loads(match.group()) if match else None
-    except:
-        return None
+        return json.loads(match.group())
+    except: return None
 
-# Load ML components
 base_dir = os.path.dirname(os.path.abspath(__file__))
-def load_ml():
-    try:
-        with open(os.path.join(base_dir, "vectorizer.pkl"), "rb") as f:
-            v = pickle.load(f)
-        with open(os.path.join(base_dir, "finalized_model.pkl"), "rb") as f:
-            m = pickle.load(f)
-        return v, m
-    except:
-        return None, None
-
-vector, model = load_ml()
+try:
+    with open(os.path.join(base_dir, "vectorizer.pkl"), "rb") as f: vector = pickle.load(f)
+    with open(os.path.join(base_dir, "finalized_model.pkl"), "rb") as f: model = pickle.load(f)
+except: vector = model = None
 
 @app.route("/", methods=["GET"])
 def home():
-    ai_status = "READY" if GITHUB_TOKEN else "MISSING_KEYS"
-    return jsonify({"status": "healthy", "ai": ai_status}), 200
+    return jsonify({"status": "healthy", "ai": "READY" if GITHUB_TOKEN else "OFFLINE"}), 200
 
 @app.route("/prediction", methods=["POST"])
 def prediction():
@@ -126,41 +108,32 @@ def prediction():
     
     if is_url(title):
         title, text = scrape_url(title)
-        if not title: return jsonify({"error": "URL Scrape Failed"}), 400
+        if not title: return jsonify({"error": "Scrape failed"}), 400
 
-    # ML Fallback calculation
-    style_result = "REAL" # default
+    style_result = "REAL"
     if vector and model:
-        processed = stemming(title + " " + text)
+        processed = stemming(title + " " + (text or ""))
         vec = vector.transform([processed])
-        pred = model.predict(vec)
-        style_result = "REAL" if pred[0] == 0 else "FAKE"
-    else:
-        # If model failed to load, deduce from length/sensation (simple heuristic)
-        if len(title) > 80 or "!" in title: style_result = "FAKE"
+        style_result = "REAL" if model.predict(vec)[0] == 0 else "FAKE"
 
     search_data = google_search(title)
     fact_check = ai_analyze(title, text, search_data)
 
     if fact_check:
         return jsonify({
-            "prediction": fact_check.get('verdict', style_result),
-            "confidence": fact_check.get('confidence', 70),
-            "explanation": fact_check.get('explanation', "Verified using cross-reference data."),
-            "sources": fact_check.get('sources', []),
+            **fact_check,
             "style_analysis": style_result,
             "method": "AI_FACT_CHECK"
         })
     else:
         return jsonify({
-            "prediction": style_result,
-            "confidence": 55,
-            "explanation": "Advanced verification engine is initializing or keys are missing. Showing stylistic analysis.",
+            "verdict": style_result,
+            "confidence": 65,
+            "explanation": "Result based on stylistic pattern analysis (AI layer timed out).",
             "sources": [],
             "style_analysis": style_result,
             "method": "ML_FALLBACK"
         })
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))
