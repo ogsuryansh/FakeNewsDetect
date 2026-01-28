@@ -20,10 +20,16 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 def setup_nltk():
+    # Use /tmp for writable directory on Vercel
+    download_dir = "/tmp/nltk_data"
+    if not os.path.exists(download_dir):
+        os.makedirs(download_dir)
+    nltk.data.path.append(download_dir)
+    
     try:
         nltk.data.find('corpora/stopwords')
     except:
-        nltk.download('stopwords')
+        nltk.download('stopwords', download_dir=download_dir)
 
 setup_nltk()
 
