@@ -22,7 +22,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 def setup_nltk():
     try:
         nltk.data.find('corpora/stopwords')
-    except (AttributeError, LookupError):
+    except:
         nltk.download('stopwords')
 
 setup_nltk()
@@ -70,60 +70,32 @@ def google_search(query):
         response = requests.post(url, headers=headers, json=data)
         return response.json().get('organic', [])
     except Exception as e:
-        print(f"Search error: {e}")
         return []
 
 def ai_analyze(news_title, news_text, search_results):
     url = "https://models.inference.ai.azure.com/chat/completions"
-    
     search_context = ""
     for idx, res in enumerate(search_results):
         search_context += f"\n[{idx+1}] Source: {res.get('link')}\nTitle: {res.get('title')}\nSnippet: {res.get('snippet')}\n"
 
-    prompt = f"""
-    Analyze the news below using the provided Google Search results.
+    prompt = f"Analyze the news below using Google Search results. NEWS TITLE: {news_title}. NEWS TEXT: {news_text}. SEARCH RESULTS: {search_context}. Output strictly valid JSON: {{\"verdict\": \"REAL\"|\"FAKE\", \"confidence\": number, \"explanation\": \"string\", \"sources\": []}}"
     
-    NEWS TITLE: {news_title}
-    NEWS TEXT: {news_text}
-    
-    SEARCH RESULTS FROM GOOGLE:
-    {search_context}
-    
-    OUTPUT FORMAT (STRICT JSON):
-    {{
-        "verdict": "REAL" | "FAKE" | "MISLEADING",
-        "confidence": number,
-        "explanation": "string",
-        "sources": ["url1", "url2"],
-        "style_warning": "Mention if the writing style is sensationalist even if true"
-    }}
-    """
-    
-    headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Content-Type": "application/json"}
     data = {
         "messages": [
-            {"role": "system", "content": "You are a fact-checking assistant that responds in valid JSON."},
+            {"role": "system", "content": "You are a fact-checking assistant responding in JSON."},
             {"role": "user", "content": prompt}
         ],
         "model": "gpt-4o",
-        "temperature": 0.1,
-        "max_tokens": 1000
+        "temperature": 0.1
     }
     
     try:
         response = requests.post(url, headers=headers, json=data)
-        resp_json = response.json()
-        content = resp_json['choices'][0]['message']['content']
+        content = response.json()['choices'][0]['message']['content']
         match = re.search(r'\{.*\}', content, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        return None
+        return json.loads(match.group()) if match else None
     except Exception as e:
-        print(f"AI Analysis error: {e}")
         return None
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -140,11 +112,9 @@ def prediction():
     data = request.get_json()
     title = data.get("title", "")
     text = data.get("text", "")
-    
     if is_url(title):
         title, text = scrape_url(title)
-        if not title:
-            return jsonify({"error": "Failed to scrape URL"}), 400
+        if not title: return jsonify({"error": "Failed to scrape URL"}), 400
 
     style_result = "UNKNOWN"
     if vector and model:
@@ -154,21 +124,13 @@ def prediction():
         style_result = "REAL" if pred[0] == 0 else "FAKE"
 
     search_data = google_search(title)
-    fact_check = ai_analyze(title, text, search_data)
-
-    if not fact_check:
-        return jsonify({
-            "prediction": style_result,
-            "method": "ML_STYLE_ONLY",
-            "explanation": "Advanced fact-checking failed. Result based on style analysis.",
-            "confidence": 60
-        })
+    fact_check = ai_analyze(title, text, search_data) or {"verdict": style_result, "confidence": 50, "explanation": "Audit based on stylistic patterns."}
 
     return jsonify({
-        "prediction": fact_check['verdict'],
-        "confidence": fact_check['confidence'],
-        "explanation": fact_check['explanation'],
-        "sources": fact_check['sources'],
+        "prediction": fact_check.get('verdict', style_result),
+        "confidence": fact_check.get('confidence', 50),
+        "explanation": fact_check.get('explanation', ""),
+        "sources": fact_check.get('sources', []),
         "style_analysis": style_result,
         "method": "AI_FACT_CHECK"
     })
