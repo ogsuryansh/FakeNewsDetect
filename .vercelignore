@@ -1,0 +1,6 @@
+NoCap/
+dataset/
+.git/
+venv/
+.env
+*.zip
