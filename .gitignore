@@ -1,0 +1,24 @@
+# Backend
+venv/
+__pycache__/
+*.pyc
+.env
+*.pkl
+dataset/
+
+# Frontend
+NoCap/node_modules/
+NoCap/dist/
+NoCap/.env
+NoCap/.env.local
+NoCap/.env.development.local
+NoCap/.env.test.local
+NoCap/.env.production.local
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
