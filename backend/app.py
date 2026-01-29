@@ -13,8 +13,22 @@ from nltk.stem.porter import PorterStemmer
 from dotenv import load_dotenv
 
 load_dotenv()
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+GITHUB_TOKENS = [
+    os.getenv("GITHUB_TOKEN"),
+    os.getenv("GITHUB_TOKEN2"),
+    os.getenv("GITHUB_TOKEN3"),
+    os.getenv("GITHUB_TOKEN4")
+]
+GITHUB_TOKENS = [t for t in GITHUB_TOKENS if t]
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+
+request_stats = {
+    "total_ai_requests": 0,
+    "token_usage": {i: 0 for i in range(len(GITHUB_TOKENS))},
+    "serper_credits": 2455,
+    "ai_limits": {i: 150 for i in range(len(GITHUB_TOKENS))}
+}
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -57,6 +71,8 @@ def scrape_url(url):
 
 def google_search(query):
     if not SERPER_API_KEY: return []
+    request_stats["serper_credits"] -= 1
+    
     url = "https://google.serper.dev/search"
     headers = {'X-API-KEY': SERPER_API_KEY}
     try:
@@ -65,7 +81,7 @@ def google_search(query):
     except: return []
 
 def ai_analyze(news_title, news_text, search_results):
-    if not GITHUB_TOKEN: return "ERROR: AI Key missing in server environment."
+    if not GITHUB_TOKENS: return "ERROR: AI Keys missing in server environment."
     url = "https://models.inference.ai.azure.com/chat/completions"
     
     context = ""
@@ -74,30 +90,57 @@ def ai_analyze(news_title, news_text, search_results):
 
     prompt = f"Analyze: {news_title}. Context: {context}. Respond in JSON: {{\"verdict\": \"REAL\"|\"FAKE\", \"confidence\": int, \"explanation\": \"str\", \"sources\": []}}"
     
-    try:
-        response = requests.post(url, headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}, 
-                                 json={
-                                     "messages": [
-                                         {"role": "system", "content": "You are a fast JSON fact-checker. Respond with ONLY valid JSON."},
-                                         {"role": "user", "content": prompt}
-                                     ],
-                                     "model": "gpt-4o",
-                                     "temperature": 0.1,
-                                     "max_tokens": 200
-                                 }, timeout=6)
-        
-        if response.status_code == 401:
-            return "ERROR: The AI Token provided is invalid or unauthorized."
-        
-        content = response.json()['choices'][0]['message']['content']
-        match = re.search(r'\{.*\}', content, re.DOTALL)
-        if match:
-            return json.loads(match.group())
-        return "ERROR: AI returned an invalid data format."
-    except requests.exceptions.Timeout:
-        return "ERROR: AI processing took too long (Timeout)."
-    except Exception as e:
-        return f"ERROR: AI analysis failed ({str(e)})."
+    for i, token in enumerate(GITHUB_TOKENS):
+        try:
+            response = requests.post(url, headers={"Authorization": f"Bearer {token}"}, 
+                                     json={
+                                         "messages": [
+                                             {"role": "system", "content": "You are a fast JSON fact-checker. Respond with ONLY valid JSON."},
+                                             {"role": "user", "content": prompt}
+                                         ],
+                                         "model": "gpt-4o",
+                                         "temperature": 0.1,
+                                         "max_tokens": 200
+                                     }, timeout=6)
+            
+            print(f"\n--- GITHUB HEADERS (Token #{i+1}) ---")
+            print(f"X-RateLimit-Limit: {response.headers.get('x-ratelimit-limit', 'N/A')}")
+            print(f"X-RateLimit-Remaining: {response.headers.get('x-ratelimit-remaining', 'N/A')}")
+            print(f"X-RateLimit-Reset: {response.headers.get('x-ratelimit-reset', 'N/A')}")
+            print("----------------------------------\n")
+
+            request_stats["total_ai_requests"] += 1
+            request_stats["token_usage"][i] += 1
+            request_stats["ai_limits"][i] -= 1
+
+            if response.status_code == 200:
+                content = response.json()['choices'][0]['message']['content']
+                match = re.search(r'\{.*\}', content, re.DOTALL)
+                if match:
+                    res_json = json.loads(match.group())
+                    remaining = response.headers.get("x-ratelimit-remaining") or \
+                                response.headers.get("ratelimit-remaining") or \
+                                "150+"
+                    res_json["api_remaining"] = remaining
+                    return res_json
+                return "ERROR: AI returned an invalid data format."
+            
+            elif response.status_code in [401, 403, 429]:
+                print(f"Token {i+1} failed with status {response.status_code}. Trying next...")
+                continue
+            else:
+                return f"ERROR: AI analysis failed (Status {response.status_code})."
+
+        except requests.exceptions.Timeout:
+            if i == len(GITHUB_TOKENS) - 1:
+                return "ERROR: AI processing took too long (Timeout)."
+            continue
+        except Exception as e:
+            if i == len(GITHUB_TOKENS) - 1:
+                return f"ERROR: AI analysis failed ({str(e)})."
+            continue
+            
+    return "ERROR: All configured AI tokens failed or are rate-limited."
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 try:
@@ -107,7 +150,12 @@ except: vector = model = None
 
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "healthy", "ai": "READY" if GITHUB_TOKEN else "OFFLINE"}), 200
+    return jsonify({
+        "status": "healthy", 
+        "ai": "READY" if GITHUB_TOKENS else "OFFLINE",
+        "tokens_active": len(GITHUB_TOKENS),
+        "requests_processed": request_stats["total_ai_requests"]
+    }), 200
 
 @app.route("/prediction", methods=["POST"])
 def prediction():
@@ -135,7 +183,6 @@ def prediction():
             "method": "AI_FACT_CHECK"
         })
     else:
-        # If fact_check is a string, it means an error occurred
         return jsonify({
             "verdict": style_result,
             "confidence": 50,
@@ -145,5 +192,53 @@ def prediction():
             "method": "ML_FALLBACK"
         })
 
+@app.route("/limit", methods=["GET"])
+def check_limits():
+    results = {
+        "github_tokens": [],
+        "serper_api": {"remaining_credits": "unknown", "status": "OFFLINE"}
+    }
+
+    print("\n--- REAL AI LIMIT CHECK (The 150 Limit) ---")
+    
+    import time
+    for i, token in enumerate(GITHUB_TOKENS):
+        try:
+             status_res = requests.get("https://api.github.com/rate_limit", 
+                                      headers={"Authorization": f"Bearer {token}"}, timeout=2)
+             is_active = status_res.status_code == 200
+             
+             data = status_res.json()
+             core = data.get("resources", {}).get("core", {})
+             raw_limit = core.get("limit", 5000)
+             raw_rem = core.get("remaining", 0)
+             raw_reset = core.get("reset", 0)
+             
+             seconds_left = max(0, int(raw_reset - time.time()))
+             minutes_left = f"{seconds_left // 60}m"
+             
+             remaining = request_stats["ai_limits"][i]
+             
+             results["github_tokens"].append({
+                 "token_index": i + 1,
+                 "token_snippet": f"...{token[-8:]}",
+                 "remaining": remaining,
+                 "rest_limit": raw_limit,
+                 "rest_remaining": raw_rem,
+                 "rest_reset": minutes_left,
+                 "status": "ACTIVE" if is_active else "EXPIRED/ERROR"
+             })
+        except Exception as e:
+            print(f"Token #{i+1}: FAILED {str(e)}")
+            results["github_tokens"].append({ "token_index": i + 1, "status": "FAILED" })
+
+    credits = request_stats["serper_credits"]
+    print(f"Serper Credits: {credits}")
+    results["serper_api"] = {"remaining_credits": credits, "status": "ACTIVE"}
+
+    print("-----------------------\n")
+    return jsonify(results), 200
+
 if __name__ == "__main__":
+    print(f"[SYSTEM] Tokens Loaded: {len(GITHUB_TOKENS)}")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))

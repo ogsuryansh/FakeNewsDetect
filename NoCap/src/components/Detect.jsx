@@ -11,6 +11,15 @@ function Detect() {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
+  const [stats, setStats] = useState({ requests_processed: 0 });
+
+  useEffect(() => {
+    fetch(`${API_URL}/`)
+      .then(res => res.json())
+      .then(data => setStats(data))
+      .catch(() => { });
+  }, [result]);
+
   const stages = [
     "Searching databases...",
     "Analyzing content...",
@@ -59,7 +68,6 @@ function Detect() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Input Section */}
           <div className="lg:col-span-12 xl:col-span-5 bg-slate-50 border border-slate-200 rounded-lg p-8 shadow-sm h-fit">
             <div className="flex gap-4 mb-8">
               <button
@@ -116,7 +124,6 @@ function Detect() {
             </div>
           </div>
 
-          {/* Results Section */}
           <div className="lg:col-span-12 xl:col-span-7">
             {!result && !loading && (
               <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg bg-slate-50/50 p-12 text-center">
@@ -151,15 +158,14 @@ function Detect() {
                   </div>
                 ) : (
                   <div>
-                    {/* Verdict Header */}
                     <div className={`px-10 py-8 border-b border-slate-100 flex items-center justify-between ${(result.verdict || result.prediction) === "REAL" ? "bg-emerald-50/20" :
-                        (result.verdict || result.prediction) === "FAKE" ? "bg-rose-50/20" : "bg-amber-50/20"
+                      (result.verdict || result.prediction) === "FAKE" ? "bg-rose-50/20" : "bg-amber-50/20"
                       }`}>
                       <div>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 block">Analysis Result</span>
                         <div className="flex items-center gap-3">
                           <h2 className={`text-4xl font-bold tracking-tight ${(result.verdict || result.prediction) === "REAL" ? "text-emerald-700" :
-                              (result.verdict || result.prediction) === "FAKE" ? "text-rose-700" : "text-amber-700"
+                            (result.verdict || result.prediction) === "FAKE" ? "text-rose-700" : "text-amber-700"
                             }`}>{(result.verdict || result.prediction)}</h2>
                           {(result.verdict === "REAL" || result.prediction === "REAL") ?
                             <CheckCircle2 className="w-6 h-6 text-emerald-600" /> :
@@ -175,7 +181,6 @@ function Detect() {
                       </div>
                     </div>
 
-                    {/* Detailed Analysis */}
                     <div className="p-10">
                       <div className="mb-10">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center gap-2">

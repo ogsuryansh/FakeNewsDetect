@@ -4,7 +4,6 @@ import { Shield, Home, Zap, BookOpen, FileText, Menu, X } from "lucide-react";
 function NavBar() {
   const [scrolled, setScrolled] = useState(false);
 
-  // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -23,18 +22,14 @@ function NavBar() {
 
   return (
     <div className="min-h-[80px]">
-      {/* Navbar */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
             ? "bg-white/80 backdrop-blur-lg shadow-lg"
             : "bg-red-200"
-        }`}
+          }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            
-            {/* Logo */}
             <div className="flex items-center space-x-3 group cursor-pointer">
               <div className="relative w-10 h-10">
                 <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-red-100 rounded-xl blur-md opacity-75"></div>
@@ -50,7 +45,6 @@ function NavBar() {
               </div>
             </div>
 
-            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
@@ -66,20 +60,16 @@ function NavBar() {
                         {link.name}
                       </span>
                     </div>
-                   
                   </a>
                 );
               })}
             </div>
 
-            {/* Right Side - Desktop */}
             <div className="hidden md:flex items-center space-x-4">
-              {/* Login Button */}
               <button className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:text-red-600 transition-colors">
                 Login
               </button>
 
-              {/* Sign Up Button */}
               <button className="relative group px-4 py-2 rounded-lg overflow-hidden">
                 <div className="absolute inset-0 bg-red-600 group-hover:scale-105"></div>
                 <div className="absolute inset-0 bg-red- opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -88,13 +78,9 @@ function NavBar() {
                 </span>
               </button>
             </div>
-
-           
           </div>
         </div>
-
       </nav>
-
     </div>
   );
 }
